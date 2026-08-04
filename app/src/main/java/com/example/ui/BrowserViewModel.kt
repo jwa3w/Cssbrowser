@@ -18,12 +18,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
-enum class SearchEngine(val displayName: String, val searchUrl: String) {
-    GOOGLE("Google", "https://www.google.com/search?q="),
-    DUCKDUCKGO("DuckDuckGo", "https://duckduckgo.com/?q="),
-    BING("Bing", "https://www.bing.com/search?q=")
-}
-
 sealed interface BrowserCommand {
     object GoBack : BrowserCommand
     object GoForward : BrowserCommand
@@ -35,13 +29,13 @@ sealed interface BrowserCommand {
 class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() {
 
     // Address and page state
-    private val _currentUrl = MutableStateFlow("local:home")
+    private val _currentUrl = MutableStateFlow("about:blank")
     val currentUrl: StateFlow<String> = _currentUrl.asStateFlow()
 
     private val _typedUrl = MutableStateFlow("")
     val typedUrl: StateFlow<String> = _typedUrl.asStateFlow()
 
-    private val _pageTitle = MutableStateFlow("Home")
+    private val _pageTitle = MutableStateFlow("Blank Page")
     val pageTitle: StateFlow<String> = _pageTitle.asStateFlow()
 
     // Loading indicator
@@ -58,19 +52,12 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
     private val _canGoForward = MutableStateFlow(false)
     val canGoForward: StateFlow<Boolean> = _canGoForward.asStateFlow()
 
-    // Search Engine
-    private val _searchEngine = MutableStateFlow(SearchEngine.GOOGLE)
-    val searchEngine: StateFlow<SearchEngine> = _searchEngine.asStateFlow()
-
     // Dialogs / Overlays
     private val _showBookmarks = MutableStateFlow(false)
     val showBookmarks: StateFlow<Boolean> = _showBookmarks.asStateFlow()
 
     private val _showHistory = MutableStateFlow(false)
     val showHistory: StateFlow<Boolean> = _showHistory.asStateFlow()
-
-    private val _showSettings = MutableStateFlow(false)
-    val showSettings: StateFlow<Boolean> = _showSettings.asStateFlow()
 
     // Reactive streams from Repository
     val bookmarks: StateFlow<List<Bookmark>> = repository.allBookmarks
@@ -83,7 +70,7 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val isCurrentPageBookmarked: StateFlow<Boolean> = _currentUrl
         .flatMapLatest { url ->
-            if (url.isEmpty() || url == "local:home") {
+            if (url.isEmpty() || url == "about:blank") {
                 flowOf(false)
             } else {
                 repository.isUrlBookmarked(url)
@@ -95,31 +82,9 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
     private val _commands = MutableSharedFlow<BrowserCommand>(extraBufferCapacity = 16)
     val commands: SharedFlow<BrowserCommand> = _commands.asSharedFlow()
 
-    init {
-        // Load settings
-        viewModelScope.launch {
-            repository.getSettingFlow("pref_search_engine").collect { engineName ->
-                if (engineName != null) {
-                    try {
-                        _searchEngine.value = SearchEngine.valueOf(engineName)
-                    } catch (e: Exception) {
-                        _searchEngine.value = SearchEngine.GOOGLE
-                    }
-                }
-            }
-        }
-    }
-
     // Input handlers
     fun onUrlTyped(url: String) {
         _typedUrl.value = url
-    }
-
-    fun selectSearchEngine(engine: SearchEngine) {
-        _searchEngine.value = engine
-        viewModelScope.launch {
-            repository.saveSetting("pref_search_engine", engine.name)
-        }
     }
 
     // Overlays toggles
@@ -127,7 +92,6 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
         _showBookmarks.value = show
         if (show) {
             _showHistory.value = false
-            _showSettings.value = false
         }
     }
 
@@ -135,15 +99,6 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
         _showHistory.value = show
         if (show) {
             _showBookmarks.value = false
-            _showSettings.value = false
-        }
-    }
-
-    fun setShowSettings(show: Boolean) {
-        _showSettings.value = show
-        if (show) {
-            _showBookmarks.value = false
-            _showHistory.value = false
         }
     }
 
@@ -158,11 +113,14 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
 
     fun loadUrl(url: String) {
         _currentUrl.value = url
-        _typedUrl.value = url
-        if (url == "local:home") {
-            _pageTitle.value = "Home"
+        _typedUrl.value = if (url == "about:blank") "" else url
+        if (url == "about:blank") {
+            _pageTitle.value = "Blank Page"
             _isLoading.value = false
             _progress.value = 0
+            viewModelScope.launch {
+                _commands.emit(BrowserCommand.LoadUrl("about:blank"))
+            }
         } else {
             viewModelScope.launch {
                 _commands.emit(BrowserCommand.LoadUrl(url))
@@ -174,26 +132,20 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
     }
 
     fun navigateBack() {
-        if (_currentUrl.value != "local:home") {
-            viewModelScope.launch {
-                _commands.emit(BrowserCommand.GoBack)
-            }
+        viewModelScope.launch {
+            _commands.emit(BrowserCommand.GoBack)
         }
     }
 
     fun navigateForward() {
-        if (_currentUrl.value != "local:home") {
-            viewModelScope.launch {
-                _commands.emit(BrowserCommand.GoForward)
-            }
+        viewModelScope.launch {
+            _commands.emit(BrowserCommand.GoForward)
         }
     }
 
     fun triggerReload() {
-        if (_currentUrl.value != "local:home") {
-            viewModelScope.launch {
-                _commands.emit(BrowserCommand.Reload)
-            }
+        viewModelScope.launch {
+            _commands.emit(BrowserCommand.Reload)
         }
     }
 
@@ -204,14 +156,14 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
     }
 
     fun navigateHome() {
-        loadUrl("local:home")
+        loadUrl("about:blank")
     }
 
     // Bookmarking current page
     fun toggleCurrentPageBookmark() {
         val url = _currentUrl.value
         val title = _pageTitle.value.ifEmpty { url }
-        if (url.isEmpty() || url == "local:home") return
+        if (url.isEmpty() || url == "about:blank") return
 
         viewModelScope.launch {
             if (isCurrentPageBookmarked.value) {
@@ -253,14 +205,14 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
     // WebView event bridges
     fun onPageStarted(url: String) {
         _currentUrl.value = url
-        _typedUrl.value = url
+        _typedUrl.value = if (url == "about:blank") "" else url
         _isLoading.value = true
         _progress.value = 0
     }
 
     fun onPageFinished(webView: android.webkit.WebView, url: String) {
         _currentUrl.value = url
-        _typedUrl.value = url
+        _typedUrl.value = if (url == "about:blank") "" else url
         _isLoading.value = false
         _progress.value = 100
         _canGoBack.value = webView.canGoBack()
@@ -270,7 +222,7 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
         _pageTitle.value = title.ifEmpty { url }
 
         // Add history entry
-        if (url.isNotEmpty() && url != "local:home" && url != "about:blank") {
+        if (url.isNotEmpty() && url != "about:blank") {
             viewModelScope.launch {
                 repository.addHistoryEntry(_pageTitle.value, url)
             }
@@ -286,7 +238,7 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
         _canGoForward.value = webView.canGoForward()
     }
 
-    // URL Normalization Logic
+    // URL Normalization Logic (pure website address parsing, no search engine)
     private fun normalizeUrl(input: String): String {
         val trimmed = input.trim()
         
@@ -298,17 +250,8 @@ class BrowserViewModel(private val repository: BrowserRepository) : ViewModel() 
             return trimmed
         }
 
-        // 2. Check if it has a valid TLD or looks like an IP address
-        val domainPattern = "^([a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}(/.*)?$".toRegex()
-        val ipPattern = "^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(:\\d+)?(/.*)?$".toRegex()
-        val localhostPattern = "^localhost(:\\d+)?(/.*)?$".toRegex()
-
-        if (domainPattern.matches(trimmed) || ipPattern.matches(trimmed) || localhostPattern.matches(trimmed)) {
-            return "https://$trimmed"
-        }
-
-        // 3. Otherwise treat as a search query
-        return _searchEngine.value.searchUrl + java.net.URLEncoder.encode(trimmed, "UTF-8")
+        // 2. Otherwise treat directly as a website by prepending https://
+        return "https://$trimmed"
     }
 
     // Factory

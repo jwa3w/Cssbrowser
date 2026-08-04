@@ -53,13 +53,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.Bookmark
 import com.example.data.HistoryEntry
 
-data class QuickLink(
-    val title: String,
-    val url: String,
-    val icon: ImageVector,
-    val color: Color
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowserMainScreen(
@@ -74,12 +67,10 @@ fun BrowserMainScreen(
     val canGoBack by viewModel.canGoBack.collectAsStateWithLifecycle()
     val canGoForward by viewModel.canGoForward.collectAsStateWithLifecycle()
     val isBookmarked by viewModel.isCurrentPageBookmarked.collectAsStateWithLifecycle()
-    val activeSearchEngine by viewModel.searchEngine.collectAsStateWithLifecycle()
 
     // Overlay triggers
     val showBookmarks by viewModel.showBookmarks.collectAsStateWithLifecycle()
     val showHistory by viewModel.showHistory.collectAsStateWithLifecycle()
-    val showSettings by viewModel.showSettings.collectAsStateWithLifecycle()
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -101,24 +92,6 @@ fun BrowserMainScreen(
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Search Engine icon / selector inside top bar
-                    IconButton(
-                        onClick = { viewModel.setShowSettings(!showSettings) },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .testTag("engine_selector_button")
-                    ) {
-                        Icon(
-                            imageVector = when (activeSearchEngine) {
-                                SearchEngine.GOOGLE -> Icons.Default.Search
-                                SearchEngine.DUCKDUCKGO -> Icons.Default.Shield
-                                SearchEngine.BING -> Icons.Default.Explore
-                            },
-                            contentDescription = "Search Settings",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
                     // URL/Search input
                     OutlinedTextField(
                         value = typedUrl,
@@ -129,7 +102,7 @@ fun BrowserMainScreen(
                             .testTag("url_input_field"),
                         placeholder = { 
                             Text(
-                                "Search or enter URL", 
+                                "Enter website URL", 
                                 maxLines = 1, 
                                 overflow = TextOverflow.Ellipsis,
                                 fontSize = 14.sp
@@ -147,6 +120,14 @@ fun BrowserMainScreen(
                                 keyboardController?.hide()
                             }
                         ),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = "Web",
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
                         trailingIcon = {
                             Row {
                                 if (typedUrl.isNotEmpty()) {
@@ -162,7 +143,7 @@ fun BrowserMainScreen(
                                     }
                                 }
 
-                                if (currentUrl != "local:home") {
+                                if (currentUrl != "about:blank") {
                                     IconButton(
                                         onClick = { viewModel.toggleCurrentPageBookmark() },
                                         modifier = Modifier.size(36.dp).testTag("bookmark_star_button")
@@ -243,26 +224,26 @@ fun BrowserMainScreen(
                     // Back
                     IconButton(
                         onClick = { viewModel.navigateBack() },
-                        enabled = canGoBack && currentUrl != "local:home",
+                        enabled = canGoBack,
                         modifier = Modifier.testTag("back_navigation_button")
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = if (canGoBack && currentUrl != "local:home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            tint = if (canGoBack) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                         )
                     }
 
                     // Forward
                     IconButton(
                         onClick = { viewModel.navigateForward() },
-                        enabled = canGoForward && currentUrl != "local:home",
+                        enabled = canGoForward,
                         modifier = Modifier.testTag("forward_navigation_button")
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Forward",
-                            tint = if (canGoForward && currentUrl != "local:home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            tint = if (canGoForward) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                         )
                     }
 
@@ -271,13 +252,12 @@ fun BrowserMainScreen(
                         onClick = {
                             if (isLoading) viewModel.triggerStop() else viewModel.triggerReload()
                         },
-                        enabled = currentUrl != "local:home",
                         modifier = Modifier.testTag("refresh_stop_button")
                     ) {
                         Icon(
                             imageVector = if (isLoading) Icons.Default.Close else Icons.Default.Refresh,
                             contentDescription = if (isLoading) "Stop" else "Refresh",
-                            tint = if (currentUrl != "local:home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
 
@@ -289,7 +269,7 @@ fun BrowserMainScreen(
                         Icon(
                             imageVector = Icons.Default.Home,
                             contentDescription = "Home",
-                            tint = if (currentUrl == "local:home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (currentUrl == "about:blank") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -325,19 +305,12 @@ fun BrowserMainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Main body content: Dashboard or WebPage
-            if (currentUrl == "local:home") {
-                BrowserDashboard(
-                    viewModel = viewModel,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                BrowserWebView(
-                    url = currentUrl,
-                    viewModel = viewModel,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            // Main body content: Always WebPage
+            BrowserWebView(
+                url = currentUrl,
+                viewModel = viewModel,
+                modifier = Modifier.fillMaxSize()
+            )
 
             // Bookmarks Sliding Overlay Sheet
             AnimatedVisibility(
@@ -362,14 +335,6 @@ fun BrowserMainScreen(
                 HistoryOverlay(
                     viewModel = viewModel,
                     onDismiss = { viewModel.setShowHistory(false) }
-                )
-            }
-
-            // Settings Dialog Box
-            if (showSettings) {
-                SettingsOverlay(
-                    viewModel = viewModel,
-                    onDismiss = { viewModel.setShowSettings(false) }
                 )
             }
         }
@@ -474,384 +439,7 @@ fun BrowserWebView(
     )
 }
 
-@Composable
-fun BrowserDashboard(
-    viewModel: BrowserViewModel,
-    modifier: Modifier = Modifier
-) {
-    val searchEngine by viewModel.searchEngine.collectAsStateWithLifecycle()
-    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
-    val history by viewModel.history.collectAsStateWithLifecycle()
-    var inlineSearchText by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
 
-    val quickLinks = remember {
-        listOf(
-            QuickLink("Google", "https://www.google.com", Icons.Default.Search, Color(0xFF4285F4)),
-            QuickLink("Wikipedia", "https://www.wikipedia.org", Icons.Default.MenuBook, Color(0xFF9C27B0)),
-            QuickLink("DuckDuckGo", "https://duckduckgo.com", Icons.Default.Shield, Color(0xFFFF5722)),
-            QuickLink("GitHub", "https://github.com", Icons.Default.Code, Color(0xFF333333)),
-            QuickLink("YouTube", "https://www.youtube.com", Icons.Default.PlayCircleFilled, Color(0xFFE53935)),
-            QuickLink("Reddit", "https://www.reddit.com", Icons.Default.Forum, Color(0xFFFF4500)),
-            QuickLink("Weather", "https://weather.com", Icons.Default.Cloud, Color(0xFF03A9F4)),
-            QuickLink("News", "https://news.google.com", Icons.Default.Newspaper, Color(0xFF4CAF50))
-        )
-    }
-
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
-                        MaterialTheme.colorScheme.background
-                    )
-                )
-            )
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // App Title Section
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Stylish web globe icon
-                Icon(
-                    imageVector = Icons.Default.Language,
-                    contentDescription = "Web Browser Logo",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .padding(end = 8.dp)
-                )
-                Text(
-                    text = "Web Browser",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                )
-            }
-            Text(
-                text = "Manual control, secure, and instant surfing.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-
-        // Centered Search Engine Card
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("dashboard_search_card"),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Search with ${searchEngine.displayName}",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        IconButton(
-                            onClick = { viewModel.setShowSettings(true) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = inlineSearchText,
-                        onValueChange = { inlineSearchText = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("dashboard_search_input"),
-                        placeholder = { Text("What are you looking for?") },
-                        singleLine = true,
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search"
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Search
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = {
-                                if (inlineSearchText.trim().isNotEmpty()) {
-                                    viewModel.onUrlTyped(inlineSearchText)
-                                    viewModel.navigateToTyped()
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                }
-                            }
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Button(
-                        onClick = {
-                            if (inlineSearchText.trim().isNotEmpty()) {
-                                viewModel.onUrlTyped(inlineSearchText)
-                                viewModel.navigateToTyped()
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .testTag("dashboard_search_submit"),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Search Web")
-                    }
-                }
-            }
-        }
-
-        // Quick Surfing Grid
-        item {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "Quick Surfing",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.align(Alignment.Start)
-                )
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        val chunkedLinks = quickLinks.chunked(4)
-                        for (row in chunkedLinks) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceAround
-                            ) {
-                                for (link in row) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .width(72.dp)
-                                            .clickable { viewModel.loadUrl(link.url) }
-                                            .testTag("quick_link_${link.title.lowercase()}")
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(link.color.copy(alpha = 0.15f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = link.icon,
-                                                contentDescription = link.title,
-                                                tint = link.color,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = link.title,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Inline Bookmarks Panel
-        if (bookmarks.isNotEmpty()) {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Saved Bookmarks",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            bookmarks.take(4).forEach { bookmark ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { viewModel.loadUrl(bookmark.url) }
-                                        .padding(vertical = 10.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = "Bookmark",
-                                        tint = Color(0xFFFFB300),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = bookmark.title,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = bookmark.url,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            }
-                            if (bookmarks.size > 4) {
-                                TextButton(
-                                    onClick = { viewModel.setShowBookmarks(true) },
-                                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                                ) {
-                                    Text("See All Bookmarks (${bookmarks.size})")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Inline History Panel
-        if (history.isNotEmpty()) {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Recent Surfs",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    ) {
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            history.take(4).forEach { entry ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { viewModel.loadUrl(entry.url) }
-                                        .padding(vertical = 10.dp, horizontal = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.History,
-                                        contentDescription = "History",
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = entry.title,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = entry.url,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            }
-                            if (history.size > 4) {
-                                TextButton(
-                                    onClick = { viewModel.setShowHistory(true) },
-                                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                                ) {
-                                    Text("See Full History")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(32.dp))
-        }
-    }
-}
 
 @Composable
 fun BookmarksOverlay(
@@ -1293,120 +881,4 @@ fun HistoryOverlay(
     }
 }
 
-@Composable
-fun SettingsOverlay(
-    viewModel: BrowserViewModel,
-    onDismiss: () -> Unit
-) {
-    val activeSearchEngine by viewModel.searchEngine.collectAsStateWithLifecycle()
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .testTag("settings_dialog"),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Browser Settings",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                HorizontalDivider()
-
-                Text(
-                    text = "Default Search Engine",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SearchEngine.values().forEach { engine ->
-                        val isSelected = activeSearchEngine == engine
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                                    else Color.Transparent
-                                )
-                                .border(
-                                    1.dp,
-                                    if (isSelected) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.outlineVariant,
-                                    RoundedCornerShape(10.dp)
-                                )
-                                .clickable {
-                                    viewModel.selectSearchEngine(engine)
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = { viewModel.selectSearchEngine(engine) },
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = engine.displayName,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Searches using ${engine.searchUrl}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Done")
-                }
-            }
-        }
-    }
-}

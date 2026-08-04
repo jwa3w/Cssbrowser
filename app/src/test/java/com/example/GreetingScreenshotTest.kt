@@ -5,7 +5,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.BrowserDatabase
 import com.example.data.BrowserRepository
-import com.example.ui.BrowserDashboard
+import com.example.ui.BrowserMainScreen
 import com.example.ui.BrowserViewModel
 import com.example.ui.theme.MyApplicationTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
@@ -33,7 +33,7 @@ class GreetingScreenshotTest {
 
     composeTestRule.setContent {
       MyApplicationTheme {
-        BrowserDashboard(viewModel = viewModel)
+        BrowserMainScreen(viewModel = viewModel)
       }
     }
 
