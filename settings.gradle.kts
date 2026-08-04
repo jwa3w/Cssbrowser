@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Web Browser"
+rootProject.name = "AutolessBrowser"
 
 include(":app")

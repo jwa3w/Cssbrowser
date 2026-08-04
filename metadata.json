@@ -1,5 +1,5 @@
 {
-  "name": "Web Browser",
+  "name": "AutolessBrowser",
   "description": "A robust, manual-control, no-autohide simple web browser with local bookmarks and history.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
