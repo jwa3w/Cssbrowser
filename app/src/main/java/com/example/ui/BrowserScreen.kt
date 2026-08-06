@@ -188,7 +188,31 @@ fun BrowserMainScreen(
                             modifier = Modifier.size(18.dp)
                         )
                     }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    val context = LocalContext.current
+                    IconButton(
+                        onClick = {
+                            val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
+                                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                                putExtra("is_incognito", true)
+                            }
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .testTag("incognito_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VisibilityOff,
+                            contentDescription = "New Incognito Instance",
+                            tint = if (viewModel.isIncognito) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
+
+
 
                 // Highly precise real progress bar (no auto-hide!)
                 if (isLoading) {
