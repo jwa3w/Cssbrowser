@@ -18,13 +18,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val isIncognito = intent?.getBooleanExtra("is_incognito", false) ?: false
-        val incognitoProfileId = intent?.getStringExtra("incognito_profile_id")
         setContent {
             MyApplicationTheme {
                 val database = BrowserDatabase.getDatabase(applicationContext)
                 val repository = BrowserRepository(database)
                 val viewModel: BrowserViewModel = viewModel(
-                    factory = BrowserViewModel.Factory(repository, isIncognito, incognitoProfileId)
+                    factory = BrowserViewModel.Factory(repository, isIncognito)
                 )
 
                 BrowserMainScreen(
