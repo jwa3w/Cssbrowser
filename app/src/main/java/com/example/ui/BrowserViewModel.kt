@@ -26,7 +26,11 @@ sealed interface BrowserCommand {
     data class LoadUrl(val url: String) : BrowserCommand
 }
 
-class BrowserViewModel(private val repository: BrowserRepository, val isIncognito: Boolean = false) : ViewModel() {
+class BrowserViewModel(
+    private val repository: BrowserRepository,
+    val isIncognito: Boolean = false,
+    val incognitoProfileId: String? = null
+) : ViewModel() {
 
     // Address and page state
     private val _currentUrl = MutableStateFlow("about:blank")
@@ -255,11 +259,15 @@ class BrowserViewModel(private val repository: BrowserRepository, val isIncognit
     }
 
     // Factory
-    class Factory(private val repository: BrowserRepository, private val isIncognito: Boolean = false) : ViewModelProvider.Factory {
+    class Factory(
+        private val repository: BrowserRepository,
+        private val isIncognito: Boolean = false,
+        private val incognitoProfileId: String? = null
+    ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(BrowserViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return BrowserViewModel(repository, isIncognito) as T
+                return BrowserViewModel(repository, isIncognito, incognitoProfileId) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

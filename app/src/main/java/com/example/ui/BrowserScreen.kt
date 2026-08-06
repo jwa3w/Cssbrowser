@@ -6,6 +6,9 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.ProfileStore
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -197,6 +200,7 @@ fun BrowserMainScreen(
                             val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
                                 flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK
                                 putExtra("is_incognito", true)
+                                putExtra("incognito_profile_id", java.util.UUID.randomUUID().toString())
                             }
                             context.startActivity(intent)
                         },
@@ -376,6 +380,17 @@ fun BrowserWebView(
 
     val webView = remember {
         WebView(context).apply {
+            if (viewModel.isIncognito && viewModel.incognitoProfileId != null) {
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+                    try {
+                        val profileStore = ProfileStore.getInstance()
+                        profileStore.getOrCreateProfile(viewModel.incognitoProfileId)
+                        WebViewCompat.setProfile(this, viewModel.incognitoProfileId)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
