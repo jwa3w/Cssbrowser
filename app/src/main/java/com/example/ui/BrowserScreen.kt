@@ -390,7 +390,27 @@ fun BrowserWebView(
                 loadWithOverviewMode = true
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                 userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Mobile Safari/537.36"
+                
+                if (viewModel.isIncognito) {
+                    cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                }
             }
+            
+            if (viewModel.isIncognito) {
+                clearCache(true)
+                clearHistory()
+                clearFormData()
+                
+                // Clear cookies
+                val cookieManager = android.webkit.CookieManager.getInstance()
+                cookieManager.removeAllCookies(null)
+                cookieManager.flush()
+                
+                // Clear web storage (localStorage, databases)
+                val webStorage = android.webkit.WebStorage.getInstance()
+                webStorage.deleteAllData()
+            }
+
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                     super.onPageStarted(view, url, favicon)
@@ -452,6 +472,18 @@ fun BrowserWebView(
 
     DisposableEffect(webView) {
         onDispose {
+            if (viewModel.isIncognito) {
+                webView.clearCache(true)
+                webView.clearHistory()
+                webView.clearFormData()
+                
+                val cookieManager = android.webkit.CookieManager.getInstance()
+                cookieManager.removeAllCookies(null)
+                cookieManager.flush()
+                
+                val webStorage = android.webkit.WebStorage.getInstance()
+                webStorage.deleteAllData()
+            }
             webView.stopLoading()
             webView.destroy()
         }
