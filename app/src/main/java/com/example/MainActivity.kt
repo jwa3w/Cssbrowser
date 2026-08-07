@@ -14,27 +14,56 @@ import com.example.ui.BrowserViewModel
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+    private var isIncognitoActivity = false
+    private var activityProfileId = "Default"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val isIncognito = intent?.getBooleanExtra("is_incognito", false) ?: false
-        val incognitoProfileName = if (isIncognito) {
-            intent?.getStringExtra("incognito_profile_name") ?: ("incognito_" + java.util.UUID.randomUUID().toString().replace("-", "").take(8))
-        } else {
-            null
+        isIncognitoActivity = isIncognito
+        val profileId = intent?.getStringExtra("profile_id") ?: if (isIncognito) "incognito_" + java.util.UUID.randomUUID().toString() else "Default"
+        activityProfileId = profileId
+
+        // Cleanup orphaned profiles when starting main screen
+        if (!isIncognito && androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.MULTI_PROFILE)) {
+            try {
+                val profileStore = androidx.webkit.ProfileStore.getInstance()
+                for (p in profileStore.getAllProfileNames()) {
+                    if (p.startsWith("incognito_")) {
+                        profileStore.deleteProfile(p)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
+
         setContent {
             MyApplicationTheme {
                 val database = BrowserDatabase.getDatabase(applicationContext)
                 val repository = BrowserRepository(database)
                 val viewModel: BrowserViewModel = viewModel(
-                    factory = BrowserViewModel.Factory(repository, isIncognito, incognitoProfileName)
+                    factory = BrowserViewModel.Factory(repository, isIncognito, profileId)
                 )
 
                 BrowserMainScreen(
                     viewModel = viewModel,
                     modifier = Modifier.fillMaxSize()
                 )
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isIncognitoActivity && activityProfileId != "Default" && isFinishing) {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.MULTI_PROFILE)) {
+                try {
+                    androidx.webkit.ProfileStore.getInstance().deleteProfile(activityProfileId)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
         }
     }

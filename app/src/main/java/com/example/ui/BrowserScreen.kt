@@ -50,6 +50,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.webkit.ProfileStore
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.example.data.Bookmark
 import com.example.data.HistoryEntry
 
@@ -194,11 +197,11 @@ fun BrowserMainScreen(
                     val context = LocalContext.current
                     IconButton(
                         onClick = {
-                            val uniqueProfileName = "incognito_" + java.util.UUID.randomUUID().toString().replace("-", "").take(8)
+                            val uniqueProfileId = "incognito_" + java.util.UUID.randomUUID().toString()
                             val intent = android.content.Intent(context, com.example.MainActivity::class.java).apply {
                                 flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK
                                 putExtra("is_incognito", true)
-                                putExtra("incognito_profile_name", uniqueProfileName)
+                                putExtra("profile_id", uniqueProfileId)
                             }
                             context.startActivity(intent)
                         },
@@ -378,18 +381,20 @@ fun BrowserWebView(
 
     val webView = remember {
         WebView(context).apply {
-            if (viewModel.isIncognito && viewModel.incognitoProfileName != null) {
-                if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.MULTI_PROFILE)) {
-                    try {
-                        val profileStore = androidx.webkit.ProfileStore.getInstance()
-                        profileStore.getOrCreateProfile(viewModel.incognitoProfileName)
-                        androidx.webkit.WebViewCompat.setProfile(this, viewModel.incognitoProfileName)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+                try {
+                    val profileStore = ProfileStore.getInstance()
+                    profileStore.getOrCreateProfile(viewModel.profileId)
+                    WebViewCompat.setProfile(this, viewModel.profileId)
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
-
+            if (viewModel.isIncognito) {
+                clearCache(true)
+                clearHistory()
+                clearFormData()
+            }
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -404,27 +409,7 @@ fun BrowserWebView(
                 loadWithOverviewMode = true
                 mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
                 userAgentString = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Mobile Safari/537.36"
-                
-                if (viewModel.isIncognito) {
-                    cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
-                }
             }
-            
-            if (viewModel.isIncognito) {
-                clearCache(true)
-                clearHistory()
-                clearFormData()
-                
-                // Clear cookies
-                val cookieManager = android.webkit.CookieManager.getInstance()
-                cookieManager.removeAllCookies(null)
-                cookieManager.flush()
-                
-                // Clear web storage (localStorage, databases)
-                val webStorage = android.webkit.WebStorage.getInstance()
-                webStorage.deleteAllData()
-            }
-
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                     super.onPageStarted(view, url, favicon)
@@ -490,27 +475,9 @@ fun BrowserWebView(
                 webView.clearCache(true)
                 webView.clearHistory()
                 webView.clearFormData()
-                
-                val cookieManager = android.webkit.CookieManager.getInstance()
-                cookieManager.removeAllCookies(null)
-                cookieManager.flush()
-                
-                val webStorage = android.webkit.WebStorage.getInstance()
-                webStorage.deleteAllData()
             }
             webView.stopLoading()
             webView.destroy()
-
-            if (viewModel.isIncognito && viewModel.incognitoProfileName != null) {
-                if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.MULTI_PROFILE)) {
-                    try {
-                        val profileStore = androidx.webkit.ProfileStore.getInstance()
-                        profileStore.deleteProfile(viewModel.incognitoProfileName)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-            }
         }
     }
 

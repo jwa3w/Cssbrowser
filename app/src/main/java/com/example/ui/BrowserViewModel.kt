@@ -3,6 +3,8 @@ package com.example.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.webkit.ProfileStore
+import androidx.webkit.WebViewFeature
 import com.example.data.Bookmark
 import com.example.data.BrowserRepository
 import com.example.data.HistoryEntry
@@ -29,7 +31,7 @@ sealed interface BrowserCommand {
 class BrowserViewModel(
     private val repository: BrowserRepository,
     val isIncognito: Boolean = false,
-    val incognitoProfileName: String? = null
+    val profileId: String = "Default"
 ) : ViewModel() {
 
     // Address and page state
@@ -258,16 +260,29 @@ class BrowserViewModel(
         return "https://$trimmed"
     }
 
+    override fun onCleared() {
+        super.onCleared()
+        if (isIncognito && profileId != "Default") {
+            try {
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
+                    ProfileStore.getInstance().deleteProfile(profileId)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     // Factory
     class Factory(
         private val repository: BrowserRepository,
         private val isIncognito: Boolean = false,
-        private val incognitoProfileName: String? = null
+        private val profileId: String = "Default"
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(BrowserViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return BrowserViewModel(repository, isIncognito, incognitoProfileName) as T
+                return BrowserViewModel(repository, isIncognito, profileId) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }
